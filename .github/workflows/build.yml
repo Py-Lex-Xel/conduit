@@ -1,74 +1,72 @@
-name: Conduit Debug Build
+name: Build iOS Re-signable IPA
 
 on:
-workflow_dispatch:
+  workflow_dispatch:   # Запуск вручную
+    inputs:
+      flutter_version:
+        description: 'Flutter version'
+        required: false
+        default: '3.22.0'   # можно поменять
 
 jobs:
-build:
-runs-on: macos-15
+  build-ios:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-```
-steps:
-  - name: Checkout
-    uses: actions/checkout@v4
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ github.event.inputs.flutter_version }}
+          channel: 'stable'
+          cache: true
 
-  - name: Show Repository Info
-    run: |
-      pwd
-      ls -la
-      git rev-parse HEAD
+      - name: Install dependencies
+        run: |
+          flutter pub get
+          dart run build_runner build --delete-conflicting-outputs
 
-  - name: Setup Flutter
-    uses: subosito/flutter-action@v2
-    with:
-      channel: stable
+      - name: Build iOS (no codesign for re-signing)
+        run: |
+          flutter build ios --release --no-codesign
 
-  - name: Flutter Doctor
-    run: |
-      flutter doctor -v
-      flutter --version
+      - name: Create IPA (re-signable)
+        run: |
+          mkdir -p build/ios/ipa
+          
+          # Создаём ExportOptions.plist для re-signable IPA
+          cat > ios/ExportOptions.plist << EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>method</key>
+              <string>development</string>
+              <key>signingStyle</key>
+              <string>manual</string>
+              <key>stripSwiftSymbols</key>
+              <true/>
+              <key>teamID</key>
+              <string></string>
+          </dict>
+          </plist>
+          EOF
 
-  - name: Show pubspec
-    run: |
-      echo "===== pubspec.yaml ====="
-      cat pubspec.yaml
+          xcodebuild -workspace ios/Runner.xcworkspace \
+            -scheme Runner \
+            -configuration Release \
+            -archivePath build/ios/Runner.xcarchive \
+            clean archive
 
-  - name: Install Dependencies
-    run: flutter pub get
+          xcodebuild -exportArchive \
+            -archivePath build/ios/Runner.xcarchive \
+            -exportPath build/ios/ipa \
+            -exportOptionsPlist ios/ExportOptions.plist
 
-  - name: Show pubspec.lock
-    run: |
-      echo "===== pubspec.lock ====="
-      cat pubspec.lock
-
-  - name: Locate super_native_extensions
-    run: |
-      echo "===== FIND RESULTS ====="
-      find . -name "*super_native_extensions*" || true
-
-  - name: Dump super_native_extensions podspec
-    run: |
-      echo "===== PODSPEC WITH LINE NUMBERS ====="
-      nl -ba ios/.symlinks/plugins/super_native_extensions/ios/super_native_extensions.podspec || true
-
-  - name: Dump Podfile
-    run: |
-      echo "===== IOS PODFILE ====="
-      cat ios/Podfile || true
-
-  - name: Dump Generated Plugin List
-    run: |
-      echo "===== GENERATED PLUGIN REGISTRANT ====="
-      find ios -name "*GeneratedPluginRegistrant*" -exec cat {} \; || true
-
-  - name: Pod Version Info
-    run: |
-      ruby --version
-      pod --version
-      gem list cocoapods
-
-  - name: Run Pod Install Verbose
-    run: |
-      cd ios
-      pod install --verbose
-```
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Conduit-iOS-Releasable
+          path: build/ios/ipa/*.ipa
+          retention-days: 7
