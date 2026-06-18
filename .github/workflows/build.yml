@@ -1,37 +1,74 @@
-name: Build Unsigned iOS IPA
+name: Conduit Debug Build
 
 on:
-  workflow_dispatch:
+workflow_dispatch:
 
 jobs:
-  build:
-    runs-on: macos-15
+build:
+runs-on: macos-15
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          ref: '4bba6c41302ed4e53cc460640b048b787fe66ce7'
+```
+steps:
+  - name: Checkout
+    uses: actions/checkout@v4
 
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: stable
+  - name: Show Repository Info
+    run: |
+      pwd
+      ls -la
+      git rev-parse HEAD
 
-      - name: Install Dependencies
-        run: flutter pub get
+  - name: Setup Flutter
+    uses: subosito/flutter-action@v2
+    with:
+      channel: stable
 
-      - name: Build iOS App (No Codesign)
-        run: flutter build ios --release --no-codesign
+  - name: Flutter Doctor
+    run: |
+      flutter doctor -v
+      flutter --version
 
-      - name: Packaging to IPA
-        run: |
-          mkdir -p Payload
-          mv build/ios/iphoneos/Runner.app Payload/
-          zip -r Conduit.ipa Payload
+  - name: Show pubspec
+    run: |
+      echo "===== pubspec.yaml ====="
+      cat pubspec.yaml
 
-      - name: Upload Finished IPA
-        uses: actions/upload-artifact@v4
-        with:
-          name: Conduit-Unsigned-IPA
-          path: Conduit.ipa
+  - name: Install Dependencies
+    run: flutter pub get
+
+  - name: Show pubspec.lock
+    run: |
+      echo "===== pubspec.lock ====="
+      cat pubspec.lock
+
+  - name: Locate super_native_extensions
+    run: |
+      echo "===== FIND RESULTS ====="
+      find . -name "*super_native_extensions*" || true
+
+  - name: Dump super_native_extensions podspec
+    run: |
+      echo "===== PODSPEC WITH LINE NUMBERS ====="
+      nl -ba ios/.symlinks/plugins/super_native_extensions/ios/super_native_extensions.podspec || true
+
+  - name: Dump Podfile
+    run: |
+      echo "===== IOS PODFILE ====="
+      cat ios/Podfile || true
+
+  - name: Dump Generated Plugin List
+    run: |
+      echo "===== GENERATED PLUGIN REGISTRANT ====="
+      find ios -name "*GeneratedPluginRegistrant*" -exec cat {} \; || true
+
+  - name: Pod Version Info
+    run: |
+      ruby --version
+      pod --version
+      gem list cocoapods
+
+  - name: Run Pod Install Verbose
+    run: |
+      cd ios
+      pod install --verbose
+```
