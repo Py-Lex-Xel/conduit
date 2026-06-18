@@ -7,7 +7,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: 'v3.3.1'
+          ref: '4bba6c41302ed4e53cc460640b048b787fe66ce7'
           
       - name: Setup Xcode version
         uses: maxim-lobanov/setup-xcode@v1
