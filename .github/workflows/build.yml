@@ -1,56 +1,37 @@
 name: Build Unsigned iOS IPA
 
-on: [workflow_dispatch]
+on:
+  workflow_dispatch:
 
 jobs:
-build:
-runs-on: macos-15
+  build:
+    runs-on: macos-15
 
-```
-steps:
-  - uses: actions/checkout@v4
-    with:
-      ref: 'v3.3.1'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: 'v3.3.1'
 
-  - name: Setup Xcode
-    uses: maxim-lobanov/setup-xcode@v1
-    with:
-      xcode-version: latest-stable
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
 
-  - name: Setup Flutter
-    uses: subosito/flutter-action@v2
-    with:
-      channel: stable
+      - name: Install Dependencies
+        run: flutter pub get
 
-  - name: Flutter Doctor
-    run: flutter doctor -v
+      - name: Build iOS App (No Codesign)
+        run: flutter build ios --release --no-codesign
 
-  - name: Install Dependencies
-    run: flutter pub get
+      - name: Packaging to IPA
+        run: |
+          mkdir -p Payload
+          mv build/ios/iphoneos/Runner.app Payload/
+          zip -r Conduit.ipa Payload
 
-  - name: Show Lockfile
-    run: cat pubspec.lock
-
-  - name: Find Problematic Podspec
-    run: |
-      find . -name "super_native_extensions.podspec" || true
-
-  - name: Print Problematic Podspec
-    run: |
-      cat ios/.symlinks/plugins/super_native_extensions/ios/super_native_extensions.podspec || true
-
-  - name: Build iOS App
-    run: flutter build ios --release --no-codesign
-
-  - name: Packaging to IPA
-    run: |
-      mkdir -p Payload
-      mv build/ios/iphoneos/Runner.app Payload/
-      zip -r Conduit.ipa Payload
-
-  - name: Upload Finished IPA
-    uses: actions/upload-artifact@v4
-    with:
-      name: Conduit-Unsigned-IPA
-      path: Conduit.ipa
-```
+      - name: Upload Finished IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: Conduit-Unsigned-IPA
+          path: Conduit.ipa
