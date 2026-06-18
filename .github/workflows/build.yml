@@ -1,12 +1,12 @@
 name: Build iOS Re-signable IPA
 
 on:
-  workflow_dispatch:   # Запуск вручную
+  workflow_dispatch:
     inputs:
       flutter_version:
         description: 'Flutter version'
         required: false
-        default: '3.22.0'   # можно поменять
+        default: '3.24.0'   # попробуй сначала эту
 
 jobs:
   build-ios:
@@ -14,6 +14,23 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      # === ФИКС НЕВАЛИДНОГО pubspec.yaml ===
+      - name: Fix invalid pubspec.yaml (remove flutter.config)
+        run: |
+          python3 -c '
+import yaml, sys
+with open("pubspec.yaml", "r", encoding="utf-8") as f:
+    data = yaml.safe_load(f) or {}
+if "flutter" in data and isinstance(data["flutter"], dict):
+    if "config" in data["flutter"]:
+        del data["flutter"]["config"]
+    if not data["flutter"]:
+        del data["flutter"]
+with open("pubspec.yaml", "w", encoding="utf-8") as f:
+    yaml.dump(data, f, sort_keys=False, allow_unicode=True, default_flow_style=False)
+print("pubspec.yaml fixed successfully")
+'
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -27,16 +44,18 @@ jobs:
           flutter pub get
           dart run build_runner build --delete-conflicting-outputs
 
-      - name: Build iOS (no codesign for re-signing)
-        run: |
-          flutter build ios --release --no-codesign
+      - name: Pod install (iOS)
+        working-directory: ios
+        run: pod install
 
-      - name: Create IPA (re-signable)
+      - name: Build iOS release (no codesign)
+        run: flutter build ios --release --no-codesign
+
+      - name: Create re-signable IPA
         run: |
           mkdir -p build/ios/ipa
           
-          # Создаём ExportOptions.plist для re-signable IPA
-          cat > ios/ExportOptions.plist << EOF
+          cat > ios/ExportOptions.plist << 'EOF'
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0">
@@ -47,8 +66,6 @@ jobs:
               <string>manual</string>
               <key>stripSwiftSymbols</key>
               <true/>
-              <key>teamID</key>
-              <string></string>
           </dict>
           </plist>
           EOF
@@ -64,7 +81,7 @@ jobs:
             -exportPath build/ios/ipa \
             -exportOptionsPlist ios/ExportOptions.plist
 
-      - name: Upload IPA artifact
+      - name: Upload IPA
         uses: actions/upload-artifact@v4
         with:
           name: Conduit-iOS-Releasable
