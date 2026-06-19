@@ -1,4 +1,4 @@
-name: Build Conduit iOS (Surgical Strike)
+name: Build Conduit iOS (Surgical Strike v2)
 
 on: workflow_dispatch
 
@@ -8,7 +8,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Вставь сюда свой рабочий хэш релиза
+          # Не забудь свой хэш!
           ref: '5bd8cb863fa29f918d3b1a5479d6419b4d47daab'
 
       - name: Setup Ruby
@@ -34,7 +34,6 @@ jobs:
           flutter pub get
           dart run build_runner build --delete-conflicting-outputs
 
-      # Патчим баг с сетью
       - name: Patch connectivity_plus
         run: |
           echo "Cleaning and patching connectivity_plus..."
@@ -43,17 +42,26 @@ jobs:
           find ~/.pub-cache -path '*/connectivity_plus-7.1.1/*/PathMonitorConnectivityProvider.swift' -exec sed -i '' \
             's/path\.isUltraConstrained/false/g' {} + || true
 
-      # --- ХИРУРГИЧЕСКИЙ ПАТЧ ---
-      # Ищем все файлы скачанного плагина и переписываем ломающие сборку кнопки на стандартные
-      - name: Surgical Patch for adaptive_platform_ui
+      # --- РАСШИРЕННЫЙ ХИРУРГИЧЕСКИЙ ПАТЧ ---
+      - name: Surgical Patch for ALL iOS Code
         run: |
-          echo "Patching transparent buttons out of adaptive_platform_ui..."
+          echo "Patching UI plugins..."
           find ~/.pub-cache/hosted/pub.dev/adaptive_platform_ui-*/ios/Classes -name "*.swift" -exec sed -i '' 's/\.glass()/\.bordered()/g' {} + || true
           find ~/.pub-cache/hosted/pub.dev/adaptive_platform_ui-*/ios/Classes -name "*.swift" -exec sed -i '' 's/\.glass/\.bordered/g' {} + || true
           find ~/.pub-cache/hosted/pub.dev/adaptive_platform_ui-*/ios/Classes -name "*.swift" -exec sed -i '' 's/\.prominentGlass()/\.borderedProminent()/g' {} + || true
           find ~/.pub-cache/hosted/pub.dev/adaptive_platform_ui-*/ios/Classes -name "*.swift" -exec sed -i '' 's/\.prominentGlass/\.borderedProminent/g' {} + || true
           find ~/.pub-cache/hosted/pub.dev/adaptive_platform_ui-*/ios/Classes -name "*.swift" -exec sed -i '' 's/\.prominent/\.done/g' {} + || true
-      # --------------------------
+
+          echo "Patching author's custom Runner code..."
+          find ios/Runner -name "*.swift" -exec sed -i '' 's/\.glass()/\.bordered()/g' {} + || true
+          find ios/Runner -name "*.swift" -exec sed -i '' 's/\.glass/\.bordered/g' {} + || true
+          find ios/Runner -name "*.swift" -exec sed -i '' 's/\.prominentGlass()/\.borderedProminent()/g' {} + || true
+          find ios/Runner -name "*.swift" -exec sed -i '' 's/\.prominentGlass/\.borderedProminent/g' {} + || true
+
+          echo "Patching broken CarPlay APIs..."
+          sed -i '' 's/.*\.backButton.*/\/\/ removed backButton/' ios/Runner/ConduitCarPlaySceneDelegate.swift || true
+          sed -i '' 's/.*actionButtons.*/\/\/ removed actionButtons/' ios/Runner/ConduitCarPlaySceneDelegate.swift || true
+      # --------------------------------------
 
       - name: Pod install
         working-directory: ios
