@@ -1,4 +1,4 @@
-name: Build iOS
+name: Build Conduit iOS
 
 on: workflow_dispatch
 
@@ -10,10 +10,9 @@ jobs:
 
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.3'
-          channel: 'stable'
+          channel: 'stable'           # ← без жёсткой версии, берёт свежий Flutter
 
-      - name: Install
+      - name: Install dependencies
         run: |
           flutter pub get
           dart run build_runner build --delete-conflicting-outputs
@@ -22,11 +21,12 @@ jobs:
         working-directory: ios
         run: pod install
 
-      - name: Build
+      - name: Build iOS
         run: flutter build ios --release --no-codesign
 
-      - name: Upload
+      - name: Upload IPA
         uses: actions/upload-artifact@v4
         with:
-          name: Conduit-IPA
+          name: Conduit-iOS-Releasable
           path: build/ios/iphoneos/Runner.app
+          retention-days: 7
