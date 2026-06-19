@@ -1,12 +1,6 @@
-name: Build Conduit iOS Re-signable
+name: Build Conduit iOS
 
-on:
-  workflow_dispatch:
-    inputs:
-      flutter_version:
-        description: Flutter version
-        required: false
-        default: '3.24.3'
+on: workflow_dispatch
 
 jobs:
   build:
@@ -14,29 +8,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # === БЕЗОПАСНЫЙ ФИКС pubspec.yaml ===
-      - name: Fix pubspec.yaml (remove invalid flutter.config)
+      - name: Fix pubspec.yaml
         run: |
-          python3 -c '
+          python3 -c "
 import yaml
-with open("pubspec.yaml", "r", encoding="utf-8") as f:
+with open('pubspec.yaml') as f:
     data = yaml.safe_load(f) or {}
-if isinstance(data.get("flutter"), dict):
-    data["flutter"].pop("config", None)
-    if not data["flutter"]:
-        data.pop("flutter", None)
-with open("pubspec.yaml", "w", encoding="utf-8") as f:
-    yaml.dump(data, f, sort_keys=False, allow_unicode=True, default_flow_style=False)
-print("pubspec.yaml fixed")
-'
+if data.get('flutter'):
+    data['flutter'].pop('config', None)
+with open('pubspec.yaml', 'w') as f:
+    yaml.dump(data, f, sort_keys=False)
+print('pubspec fixed')
+"
 
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: ${{ github.event.inputs.flutter_version }}
+          flutter-version: '3.24.3'
           channel: 'stable'
-          cache: true
 
-      - name: Install dependencies
+      - name: Dependencies
         run: |
           flutter pub get
           dart run build_runner build --delete-conflicting-outputs
@@ -45,26 +35,26 @@ print("pubspec.yaml fixed")
         working-directory: ios
         run: pod install
 
-      - name: Build iOS (no codesign)
+      - name: Build iOS
         run: flutter build ios --release --no-codesign
 
-      - name: Create re-signable IPA
+      - name: Create IPA
         run: |
           mkdir -p build/ios/ipa
-          cat > ExportOptions.plist << 'EOF'
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-            <key>method</key>
-            <string>development</string>
-            <key>signingStyle</key>
-            <string>manual</string>
-            <key>stripSwiftSymbols</key>
-            <true/>
-          </dict>
-          </plist>
-          EOF
+          cat > ExportOptions.plist << 'EOL'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>method</key>
+  <string>development</string>
+  <key>signingStyle</key>
+  <string>manual</string>
+  <key>stripSwiftSymbols</key>
+  <true/>
+</dict>
+</plist>
+EOL
 
           xcodebuild -workspace ios/Runner.xcworkspace \
             -scheme Runner \
@@ -77,7 +67,7 @@ print("pubspec.yaml fixed")
             -exportPath build/ios/ipa \
             -exportOptionsPlist ExportOptions.plist
 
-      - name: Upload IPA artifact
+      - name: Upload
         uses: actions/upload-artifact@v4
         with:
           name: Conduit-iOS-Releasable
