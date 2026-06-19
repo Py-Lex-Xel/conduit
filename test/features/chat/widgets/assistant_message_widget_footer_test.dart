@@ -160,27 +160,28 @@ void main() {
     expect(find.text('2/2'), findsOneWidget);
     expect(find.byIcon(Icons.content_copy), findsOneWidget);
     expect(find.byIcon(Icons.refresh), findsOneWidget);
-    expect(find.byIcon(Icons.chevron_left), findsNothing);
-    expect(find.byIcon(Icons.chevron_right), findsNothing);
+    expect(find.byIcon(Icons.chevron_left), findsOneWidget);
+    expect(find.byIcon(Icons.chevron_right), findsOneWidget);
     expect(find.byIcon(Icons.more_horiz_rounded), findsOneWidget);
 
     final refreshPosition = tester.getTopLeft(find.byIcon(Icons.refresh));
     final sourcePosition = tester.getTopLeft(find.text('1 Source'));
+    final previousPosition = tester.getTopLeft(find.byIcon(Icons.chevron_left));
     final versionPosition = tester.getTopLeft(find.text('2/2'));
+    final nextPosition = tester.getTopLeft(find.byIcon(Icons.chevron_right));
     final overflowPosition = tester.getTopLeft(
       find.byIcon(Icons.more_horiz_rounded),
     );
 
     expect(sourcePosition.dx, greaterThan(refreshPosition.dx));
-    expect(versionPosition.dx, greaterThan(sourcePosition.dx));
-    expect(overflowPosition.dx, greaterThan(sourcePosition.dx));
-    expect(overflowPosition.dx, greaterThan(versionPosition.dx));
+    expect(previousPosition.dx, greaterThan(sourcePosition.dx));
+    expect(versionPosition.dx, greaterThan(previousPosition.dx));
+    expect(nextPosition.dx, greaterThan(versionPosition.dx));
+    expect(overflowPosition.dx, greaterThan(nextPosition.dx));
 
     await tester.tap(find.byIcon(Icons.more_horiz_rounded));
     await tester.pumpAndSettle();
 
-    expect(find.text('Prev'), findsOneWidget);
-    expect(find.text('Next'), findsOneWidget);
     expect(find.text('Info'), findsOneWidget);
   });
 

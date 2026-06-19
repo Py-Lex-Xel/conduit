@@ -1623,14 +1623,35 @@ class _AssistantMessageWidgetState extends ConsumerState<AssistantMessageWidget>
   Widget? _buildFooterBar({required List<ChatSourceReference> activeSources}) {
     const maxInlineActions = 3;
     final actions = _buildFooterActions();
+    _AssistantFooterAction? findAction(String id) {
+      for (final action in actions) {
+        if (action.id == id) {
+          return action;
+        }
+      }
+      return null;
+    }
+
+    final previousVersionAction = findAction('previous_version');
+    final nextVersionAction = findAction('next_version');
     final forcedOverflowActions = actions
         .where((action) => action.id == 'delete')
         .toList(growable: false);
     final inlineCandidateActions = actions
-        .where((action) => action.id != 'delete')
+        .where(
+          (action) =>
+              action.id != 'delete' &&
+              action.id != 'previous_version' &&
+              action.id != 'next_version',
+        )
         .toList(growable: false);
     final visibleActions = actions
-        .where((action) => action.id != 'delete')
+        .where(
+          (action) =>
+              action.id != 'delete' &&
+              action.id != 'previous_version' &&
+              action.id != 'next_version',
+        )
         .take(maxInlineActions)
         .toList(growable: false);
     final overflowActions = [
@@ -1643,7 +1664,19 @@ class _AssistantMessageWidgetState extends ConsumerState<AssistantMessageWidget>
           sources: activeSources,
           messageId: widget.message.id,
         ),
+      if (widget.message.versions.isNotEmpty && previousVersionAction != null)
+        _buildActionButton(
+          icon: previousVersionAction.icon,
+          label: previousVersionAction.label,
+          onTap: previousVersionAction.onTap,
+        ),
       if (widget.message.versions.isNotEmpty) _buildVersionChip(),
+      if (widget.message.versions.isNotEmpty && nextVersionAction != null)
+        _buildActionButton(
+          icon: nextVersionAction.icon,
+          label: nextVersionAction.label,
+          onTap: nextVersionAction.onTap,
+        ),
     ];
 
     if (infoWidgets.isEmpty &&
