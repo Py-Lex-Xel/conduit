@@ -1,4 +1,4 @@
-name: Build Conduit iOS2
+name: Build Conduit iOS3
 
 on: workflow_dispatch
 
@@ -24,13 +24,14 @@ jobs:
           flutter pub get
           dart run build_runner build --delete-conflicting-outputs
 
-      - name: Patch connectivity_plus for Xcode 16.4
+      - name: Patch connectivity_plus (reliable)
         run: |
-          FILE=$(find ~/.pub-cache/hosted/pub.dev -name "PathMonitorConnectivityProvider.swift" | head -1)
-          if [ -f "$FILE" ]; then
-            sed -i '' 's/isUltraConstrained/ isReachable/g' "$FILE" || true
-            echo "Patched: $FILE"
-          fi
+          echo "Searching for PathMonitorConnectivityProvider.swift..."
+          find ~/.pub-cache -name "PathMonitorConnectivityProvider.swift" -print0 | while IFS= read -r -d '' file; do
+            echo "Found: $file"
+            sed -i '' 's/isUltraConstrained/isReachable/g' "$file" || true
+          done
+          echo "Patch finished"
 
       - name: Pod install
         working-directory: ios
