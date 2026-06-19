@@ -1,4 +1,4 @@
-name: Build Conduit iOS1
+name: Build Conduit iOSS
 
 on: workflow_dispatch
 
