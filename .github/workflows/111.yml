@@ -8,7 +8,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: '5bd8cb863fa29f918d3b1a5479d6419b4d47daab'
+          ref: '52ab0024e827b784fb40b42659dcc5ee681ef605'
 
       - name: Select Xcode 16
         uses: maxim-lobanov/setup-xcode@v1
