@@ -1,4 +1,4 @@
-name: Build Conduit iOS
+name: Build Conduit iOSsd
 
 on: workflow_dispatch
 
@@ -8,7 +8,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: 'ТВОЙ_СКОПИРОВАННЫЙ_ХЭШ_ИЗ_МАЯ'
+          ref: '0657b7b5859e2b6178b3a9ea3f5ca8b74fd53761'
 
       # --- ТОТ САМЫЙ ФИКС ---
       # Откатываем Ruby до версии 3.2, чтобы починить ошибку CocoaPods
