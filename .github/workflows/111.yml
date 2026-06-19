@@ -10,24 +10,21 @@ jobs:
         with:
           ref: '0657b7b5859e2b6178b3a9ea3f5ca8b74fd53761'
 
-      # Фиксируем Ruby для CocoaPods
       - name: Setup Ruby & CocoaPods
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: '3.2'
       - run: gem install cocoapods
 
-      # --- ГЛАВНЫЙ ФИКС: Используем ту самую версию Flutter, что и автор ---
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.19.6'
           channel: 'stable'
-      # ----------------------------------------------------------------------
 
-      - name: Disable Swift Package Manager + Clean
+      # Убрали команду отключения SPM, оставили только очистку
+      - name: Clean Workspace
         run: |
-          flutter config --no-enable-swift-package-manager
           rm -rf build/ios
           rm -rf ios/Pods
           rm -f ios/Podfile.lock
@@ -37,7 +34,6 @@ jobs:
           flutter pub get
           dart run build_runner build --delete-conflicting-outputs
 
-      # Патчим старый баг connectivity_plus, чтобы Xcode не ругался
       - name: Patch connectivity_plus
         run: |
           echo "Cleaning and patching connectivity_plus..."
@@ -46,7 +42,6 @@ jobs:
           find ~/.pub-cache -path '*/connectivity_plus-7.1.1/*/PathMonitorConnectivityProvider.swift' -exec sed -i '' \
             's/path\.isUltraConstrained/false/g' {} + || true
 
-      # Блокируем адаптивный UI на старой версии, чтобы не требовал iOS 18
       - name: Pin adaptive_platform_ui version
         run: |
           echo "" >> pubspec.yaml
