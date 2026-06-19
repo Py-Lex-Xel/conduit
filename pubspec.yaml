@@ -155,3 +155,6 @@ flutter_native_splash:
     color_dark: "#000000"
 
   web: false
+
+dependency_overrides:
+  connectivity_plus: ^8.0.0
