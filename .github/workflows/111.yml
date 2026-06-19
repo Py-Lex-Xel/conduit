@@ -1,30 +1,32 @@
-name: Build Conduit iOS (Perfect Match)
+name: Build Conduit iOS (Victory)
 
 on: workflow_dispatch
 
 jobs:
   build:
-    runs-on: macos-14
+    # Возвращаем быстрый сервер
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
         with:
           ref: '0657b7b5859e2b6178b3a9ea3f5ca8b74fd53761'
 
+      # Ставим правильный Ruby для CocoaPods
       - name: Setup Ruby & CocoaPods
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: '3.2'
       - run: gem install cocoapods
 
+      # Берем самый свежий Flutter, чтобы Dart SDK совпал (>= 3.8.0)
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.19.6'
           channel: 'stable'
 
-      # Убрали команду отключения SPM, оставили только очистку
-      - name: Clean Workspace
+      - name: Disable Swift Package Manager + Clean
         run: |
+          flutter config --no-enable-swift-package-manager
           rm -rf build/ios
           rm -rf ios/Pods
           rm -f ios/Podfile.lock
@@ -34,6 +36,7 @@ jobs:
           flutter pub get
           dart run build_runner build --delete-conflicting-outputs
 
+      # Патчим старый баг с сетью для новых iOS
       - name: Patch connectivity_plus
         run: |
           echo "Cleaning and patching connectivity_plus..."
@@ -42,11 +45,29 @@ jobs:
           find ~/.pub-cache -path '*/connectivity_plus-7.1.1/*/PathMonitorConnectivityProvider.swift' -exec sed -i '' \
             's/path\.isUltraConstrained/false/g' {} + || true
 
+      # Блокируем адаптивный UI от обновления прозрачных кнопок
       - name: Pin adaptive_platform_ui version
         run: |
           echo "" >> pubspec.yaml
           echo "dependency_overrides:" >> pubspec.yaml
           echo "  adaptive_platform_ui: 0.1.103" >> pubspec.yaml
+
+      # --- ТОТ САМЫЙ ХИТРЫЙ ФИКС ---
+      # Заменяем оригинальное имя на нашу заглушку и добавляем её код в конец файла
+      - name: Inject Dummy Transition Builder
+        run: |
+          echo "Injecting dummy class to bypass transition errors..."
+          sed -i '' 's/CupertinoPageTransitionsBuilder/DummyCupertinoPageTransitionsBuilder/g' lib/shared/utils/platform_page_route.dart
+          cat << 'EOF' >> lib/shared/utils/platform_page_route.dart
+          
+          class DummyCupertinoPageTransitionsBuilder {
+            const DummyCupertinoPageTransitionsBuilder();
+            dynamic buildTransitions<T>(dynamic r, dynamic c, dynamic a, dynamic sa, dynamic child) {
+              return child;
+            }
+          }
+          EOF
+      # ------------------------------
 
       - name: Pod install
         working-directory: ios
