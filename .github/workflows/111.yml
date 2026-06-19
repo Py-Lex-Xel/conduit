@@ -1,4 +1,4 @@
-name: Build Conduit iOS1
+name: Build Conduit iOS2
 
 on: workflow_dispatch
 
@@ -12,18 +12,25 @@ jobs:
         with:
           channel: 'stable'
 
-      - name: Disable Swift Package Manager (aggressive)
+      - name: Disable Swift Package Manager + Clean
         run: |
           flutter config --no-enable-swift-package-manager
           rm -rf build/ios
           rm -rf ios/Pods
           rm -f ios/Podfile.lock
-          rm -rf ~/.pub-cache
 
       - name: Install dependencies
         run: |
           flutter pub get
           dart run build_runner build --delete-conflicting-outputs
+
+      - name: Patch connectivity_plus for Xcode 16.4
+        run: |
+          FILE=$(find ~/.pub-cache/hosted/pub.dev -name "PathMonitorConnectivityProvider.swift" | head -1)
+          if [ -f "$FILE" ]; then
+            sed -i '' 's/isUltraConstrained/ isReachable/g' "$FILE" || true
+            echo "Patched: $FILE"
+          fi
 
       - name: Pod install
         working-directory: ios
