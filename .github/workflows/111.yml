@@ -1,22 +1,26 @@
-name: Build Conduit iOS1
+name: Build Conduit iOS
 
 on: workflow_dispatch
 
 jobs:
   build:
-    runs-on: macos-latest
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
-
-      # --- ВОТ ЭТОТ ШАГ РЕШАЕТ ПРОБЛЕМУ ---
-      # Включаем Xcode 16 на быстрой машине, чтобы компилятор понял новые кнопки
-      - name: Select Xcode 16
-        uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: '16.0'
-      # ------------------------------------
+          ref: 'ТВОЙ_СКОПИРОВАННЫЙ_ХЭШ_ИЗ_МАЯ'
 
-      - uses: subosito/flutter-action@v2
+      # --- ТОТ САМЫЙ ФИКС ---
+      # Откатываем Ruby до версии 3.2, чтобы починить ошибку CocoaPods
+      - name: Setup Ruby & CocoaPods
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+      - run: gem install cocoapods
+      # ----------------------
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
 
@@ -37,10 +41,8 @@ jobs:
           echo "Cleaning and patching connectivity_plus..."
           rm -rf ~/.pub-cache/hosted/pub.dev/connectivity_plus-7.1.1
           flutter pub get
-          
           find ~/.pub-cache -path '*/connectivity_plus-7.1.1/*/PathMonitorConnectivityProvider.swift' -exec sed -i '' \
             's/path\.isUltraConstrained/false/g' {} + || true
-          
           echo "Patch completed"
 
       - name: Pod install
