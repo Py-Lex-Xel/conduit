@@ -1,4 +1,4 @@
-name: Build Conduit iOS (Final Push)
+name: Build Conduit iOS (Surgical Strike)
 
 on: workflow_dispatch
 
@@ -8,19 +8,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          # Вставь сюда свой рабочий хэш релиза
           ref: '5bd8cb863fa29f918d3b1a5479d6419b4d47daab'
-
-      - name: Select Xcode 16
-        uses: maxim-lobanov/setup-xcode@v1
-        with:
-          xcode-version: '16.0'
-
-      # --- ФИКС ОШИБКИ 70 ИЗ ТВОЕГО СКРИНШОТА ---
-      - name: Wake up daemon & Install iOS 18 SDK
-        run: |
-          xcrun simctl list > /dev/null
-          xcodebuild -downloadPlatform iOS
-      # ------------------------------------------
 
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
@@ -45,13 +34,26 @@ jobs:
           flutter pub get
           dart run build_runner build --delete-conflicting-outputs
 
-      # Патчим только сеть, UI больше не блокируем
+      # Патчим баг с сетью
       - name: Patch connectivity_plus
         run: |
+          echo "Cleaning and patching connectivity_plus..."
           rm -rf ~/.pub-cache/hosted/pub.dev/connectivity_plus-7.1.1
           flutter pub get
           find ~/.pub-cache -path '*/connectivity_plus-7.1.1/*/PathMonitorConnectivityProvider.swift' -exec sed -i '' \
             's/path\.isUltraConstrained/false/g' {} + || true
+
+      # --- ХИРУРГИЧЕСКИЙ ПАТЧ ---
+      # Ищем все файлы скачанного плагина и переписываем ломающие сборку кнопки на стандартные
+      - name: Surgical Patch for adaptive_platform_ui
+        run: |
+          echo "Patching transparent buttons out of adaptive_platform_ui..."
+          find ~/.pub-cache/hosted/pub.dev/adaptive_platform_ui-*/ios/Classes -name "*.swift" -exec sed -i '' 's/\.glass()/\.bordered()/g' {} + || true
+          find ~/.pub-cache/hosted/pub.dev/adaptive_platform_ui-*/ios/Classes -name "*.swift" -exec sed -i '' 's/\.glass/\.bordered/g' {} + || true
+          find ~/.pub-cache/hosted/pub.dev/adaptive_platform_ui-*/ios/Classes -name "*.swift" -exec sed -i '' 's/\.prominentGlass()/\.borderedProminent()/g' {} + || true
+          find ~/.pub-cache/hosted/pub.dev/adaptive_platform_ui-*/ios/Classes -name "*.swift" -exec sed -i '' 's/\.prominentGlass/\.borderedProminent/g' {} + || true
+          find ~/.pub-cache/hosted/pub.dev/adaptive_platform_ui-*/ios/Classes -name "*.swift" -exec sed -i '' 's/\.prominent/\.done/g' {} + || true
+      # --------------------------
 
       - name: Pod install
         working-directory: ios
