@@ -1,4 +1,4 @@
-name: Build Conduit iOS (Surgical Strike v2)
+name: Build Conduit iOS (Flawless Victory)
 
 on: workflow_dispatch
 
@@ -8,8 +8,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Не забудь свой хэш!
           ref: '5bd8cb863fa29f918d3b1a5479d6419b4d47daab'
+
+      - name: Select Xcode 16
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '16.0'
+
+      - name: Wake up daemon & Install iOS 18 SDK
+        run: |
+          xcrun simctl list > /dev/null
+          xcodebuild -downloadPlatform iOS
 
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
@@ -42,7 +51,7 @@ jobs:
           find ~/.pub-cache -path '*/connectivity_plus-7.1.1/*/PathMonitorConnectivityProvider.swift' -exec sed -i '' \
             's/path\.isUltraConstrained/false/g' {} + || true
 
-      # --- РАСШИРЕННЫЙ ХИРУРГИЧЕСКИЙ ПАТЧ ---
+      # --- ЭЛЕГАНТНЫЙ ПАТЧ (UI + CarPlay) ---
       - name: Surgical Patch for ALL iOS Code
         run: |
           echo "Patching UI plugins..."
@@ -58,9 +67,24 @@ jobs:
           find ios/Runner -name "*.swift" -exec sed -i '' 's/\.prominentGlass()/\.borderedProminent()/g' {} + || true
           find ios/Runner -name "*.swift" -exec sed -i '' 's/\.prominentGlass/\.borderedProminent/g' {} + || true
 
-          echo "Patching broken CarPlay APIs..."
-          sed -i '' 's/.*\.backButton.*/\/\/ removed backButton/' ios/Runner/ConduitCarPlaySceneDelegate.swift || true
-          sed -i '' 's/.*actionButtons.*/\/\/ removed actionButtons/' ios/Runner/ConduitCarPlaySceneDelegate.swift || true
+          echo "Injecting CarPlay stubs..."
+          cat << 'EOF' >> ios/Runner/ConduitCarPlaySceneDelegate.swift
+          
+          import CarPlay
+          extension CPVoiceControlTemplate {
+              var backButton: CPBarButton? {
+                  get { return nil }
+                  set { }
+              }
+          }
+          extension CPVoiceControlState {
+              var actionButtons: [CPButton]? {
+                  get { return nil }
+                  set { }
+              }
+              static var maximumActionButtonCount: Int { return 3 }
+          }
+          EOF
       # --------------------------------------
 
       - name: Pod install
