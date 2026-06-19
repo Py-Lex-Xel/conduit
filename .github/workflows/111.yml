@@ -1,14 +1,22 @@
-name: Build Conduit iOS (Pinned UI)
+name: Build Conduit iOS (Tahoe)
 
 on: workflow_dispatch
 
 jobs:
   build:
-    runs-on: macos-latest
+    # Запрашиваем новейший сервер Apple с поддержкой iOS 26
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
         with:
           ref: '0657b7b5859e2b6178b3a9ea3f5ca8b74fd53761'
+
+      # Откатываем Ruby до версии 3.2, чтобы CocoaPods не ломался
+      - name: Setup Ruby & CocoaPods
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+      - run: gem install cocoapods
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -21,16 +29,6 @@ jobs:
           rm -rf build/ios
           rm -rf ios/Pods
           rm -f ios/Podfile.lock
-
-      # --- ТОТ САМЫЙ ФИКС ---
-      # Жестко блокируем библиотеку дизайна на старой версии (0.1.103), 
-      # чтобы она не скачивала обновление и не требовала Xcode 16.
-      - name: Pin adaptive_platform_ui version
-        run: |
-          echo "" >> pubspec.yaml
-          echo "dependency_overrides:" >> pubspec.yaml
-          echo "  adaptive_platform_ui: 0.1.103" >> pubspec.yaml
-      # ----------------------
 
       - name: Install dependencies
         run: |
