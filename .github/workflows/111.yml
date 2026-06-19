@@ -1,4 +1,4 @@
-name: Build Conduit iOS
+name: Build Conduit iOS1
 
 on: workflow_dispatch
 
@@ -10,7 +10,15 @@ jobs:
 
       - uses: subosito/flutter-action@v2
         with:
-          channel: 'stable'           # ← без жёсткой версии, берёт свежий Flutter
+          channel: 'stable'
+
+      - name: Disable Swift Package Manager (aggressive)
+        run: |
+          flutter config --no-enable-swift-package-manager
+          rm -rf build/ios
+          rm -rf ios/Pods
+          rm -f ios/Podfile.lock
+          rm -rf ~/.pub-cache
 
       - name: Install dependencies
         run: |
