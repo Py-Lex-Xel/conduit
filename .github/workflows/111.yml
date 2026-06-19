@@ -1,4 +1,4 @@
-name: Build Conduit iOS123
+name: Build Conduit iOS1
 
 on: workflow_dispatch
 
@@ -7,6 +7,14 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
+
+      # --- ВОТ ЭТОТ ШАГ РЕШАЕТ ПРОБЛЕМУ ---
+      # Включаем Xcode 16 на быстрой машине, чтобы компилятор понял новые кнопки
+      - name: Select Xcode 16
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '16.0'
+      # ------------------------------------
 
       - uses: subosito/flutter-action@v2
         with:
