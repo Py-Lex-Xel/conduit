@@ -1,4 +1,4 @@
-name: Build Conduit iOS (The Real Deal)
+name: Build Conduit iOS (Final Push)
 
 on: workflow_dispatch
 
@@ -8,27 +8,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Вставь сюда хэш коммита (слепка кода) от 9 июня
           ref: '5bd8cb863fa29f918d3b1a5479d6419b4d47daab'
 
-      # 1. Включаем новейший Xcode
       - name: Select Xcode 16
         uses: maxim-lobanov/setup-xcode@v1
         with:
           xcode-version: '16.0'
 
-      # 2. РАЗГАДКА: Скачиваем SDK iOS 18, которого нет на серверах Гитхаба по умолчанию!
-      - name: Install iOS 18 SDK
-        run: xcodebuild -downloadPlatform iOS
+      # --- ФИКС ОШИБКИ 70 ИЗ ТВОЕГО СКРИНШОТА ---
+      - name: Wake up daemon & Install iOS 18 SDK
+        run: |
+          xcrun simctl list > /dev/null
+          xcodebuild -downloadPlatform iOS
+      # ------------------------------------------
 
-      # 3. Фиксируем Ruby для CocoaPods
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: '3.2'
       - run: gem install cocoapods
 
-      # 4. Включаем стабильный Flutter
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -46,10 +45,9 @@ jobs:
           flutter pub get
           dart run build_runner build --delete-conflicting-outputs
 
-      # Патч для connectivity_plus (баг этой библиотеки тянется годами)
+      # Патчим только сеть, UI больше не блокируем
       - name: Patch connectivity_plus
         run: |
-          echo "Cleaning and patching connectivity_plus..."
           rm -rf ~/.pub-cache/hosted/pub.dev/connectivity_plus-7.1.1
           flutter pub get
           find ~/.pub-cache -path '*/connectivity_plus-7.1.1/*/PathMonitorConnectivityProvider.swift' -exec sed -i '' \
