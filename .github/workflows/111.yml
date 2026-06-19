@@ -1,30 +1,40 @@
-name: Build Conduit iOS (Victory)
+name: Build Conduit iOS (The Real Deal)
 
 on: workflow_dispatch
 
 jobs:
   build:
-    # Возвращаем быстрый сервер
-    runs-on: macos-26
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: '0657b7b5859e2b6178b3a9ea3f5ca8b74fd53761'
+          # Вставь сюда хэш коммита (слепка кода) от 9 июня
+          ref: '5bd8cb863fa29f918d3b1a5479d6419b4d47daab'
 
-      # Ставим правильный Ruby для CocoaPods
-      - name: Setup Ruby & CocoaPods
+      # 1. Включаем новейший Xcode
+      - name: Select Xcode 16
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '16.0'
+
+      # 2. РАЗГАДКА: Скачиваем SDK iOS 18, которого нет на серверах Гитхаба по умолчанию!
+      - name: Install iOS 18 SDK
+        run: xcodebuild -downloadPlatform iOS
+
+      # 3. Фиксируем Ruby для CocoaPods
+      - name: Setup Ruby
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: '3.2'
       - run: gem install cocoapods
 
-      # Берем самый свежий Flutter, чтобы Dart SDK совпал (>= 3.8.0)
+      # 4. Включаем стабильный Flutter
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
 
-      - name: Disable Swift Package Manager + Clean
+      - name: Clean Workspace
         run: |
           flutter config --no-enable-swift-package-manager
           rm -rf build/ios
@@ -36,7 +46,7 @@ jobs:
           flutter pub get
           dart run build_runner build --delete-conflicting-outputs
 
-      # Патчим старый баг с сетью для новых iOS
+      # Патч для connectivity_plus (баг этой библиотеки тянется годами)
       - name: Patch connectivity_plus
         run: |
           echo "Cleaning and patching connectivity_plus..."
@@ -44,30 +54,6 @@ jobs:
           flutter pub get
           find ~/.pub-cache -path '*/connectivity_plus-7.1.1/*/PathMonitorConnectivityProvider.swift' -exec sed -i '' \
             's/path\.isUltraConstrained/false/g' {} + || true
-
-      # Блокируем адаптивный UI от обновления прозрачных кнопок
-      - name: Pin adaptive_platform_ui version
-        run: |
-          echo "" >> pubspec.yaml
-          echo "dependency_overrides:" >> pubspec.yaml
-          echo "  adaptive_platform_ui: 0.1.103" >> pubspec.yaml
-
-      # --- ТОТ САМЫЙ ХИТРЫЙ ФИКС ---
-      # Заменяем оригинальное имя на нашу заглушку и добавляем её код в конец файла
-      - name: Inject Dummy Transition Builder
-        run: |
-          echo "Injecting dummy class to bypass transition errors..."
-          sed -i '' 's/CupertinoPageTransitionsBuilder/DummyCupertinoPageTransitionsBuilder/g' lib/shared/utils/platform_page_route.dart
-          cat << 'EOF' >> lib/shared/utils/platform_page_route.dart
-          
-          class DummyCupertinoPageTransitionsBuilder {
-            const DummyCupertinoPageTransitionsBuilder();
-            dynamic buildTransitions<T>(dynamic r, dynamic c, dynamic a, dynamic sa, dynamic child) {
-              return child;
-            }
-          }
-          EOF
-      # ------------------------------
 
       - name: Pod install
         working-directory: ios
