@@ -1,25 +1,29 @@
-name: Build Conduit iOS (Tahoe1)
+name: Build Conduit iOS (Perfect Match)
 
 on: workflow_dispatch
 
 jobs:
   build:
-    runs-on: macos-26
+    runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
         with:
           ref: '0657b7b5859e2b6178b3a9ea3f5ca8b74fd53761'
 
+      # Фиксируем Ruby для CocoaPods
       - name: Setup Ruby & CocoaPods
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: '3.2'
       - run: gem install cocoapods
 
+      # --- ГЛАВНЫЙ ФИКС: Используем ту самую версию Flutter, что и автор ---
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
+          flutter-version: '3.19.6'
           channel: 'stable'
+      # ----------------------------------------------------------------------
 
       - name: Disable Swift Package Manager + Clean
         run: |
@@ -33,6 +37,7 @@ jobs:
           flutter pub get
           dart run build_runner build --delete-conflicting-outputs
 
+      # Патчим старый баг connectivity_plus, чтобы Xcode не ругался
       - name: Patch connectivity_plus
         run: |
           echo "Cleaning and patching connectivity_plus..."
@@ -41,12 +46,12 @@ jobs:
           find ~/.pub-cache -path '*/connectivity_plus-7.1.1/*/PathMonitorConnectivityProvider.swift' -exec sed -i '' \
             's/path\.isUltraConstrained/false/g' {} + || true
 
-      # --- НОВЫЙ ФИКС: Убираем лишнее слово const в коде автора ---
-      - name: Patch Conduit Dart Code
+      # Блокируем адаптивный UI на старой версии, чтобы не требовал iOS 18
+      - name: Pin adaptive_platform_ui version
         run: |
-          echo "Fixing const error in platform_page_route.dart..."
-          sed -i '' 's/const CupertinoPageTransitionsBuilder()/CupertinoPageTransitionsBuilder()/g' lib/shared/utils/platform_page_route.dart
-      # ------------------------------------------------------------
+          echo "" >> pubspec.yaml
+          echo "dependency_overrides:" >> pubspec.yaml
+          echo "  adaptive_platform_ui: 0.1.103" >> pubspec.yaml
 
       - name: Pod install
         working-directory: ios
